@@ -16,14 +16,15 @@ require_relative 'timer_sample'
 require_relative 'timer'
 require_relative 'counter'
 require_relative 'exceptions'
+require_relative 'units'
 
 module TsdMetrics
-  class TsdMetric2c
-    # Implements TsdMetricStruct interface
+  class TsdMetric
+    # Implements TsdMetricEvent interface
     attr_reader :annotations, :gauges
 
-    def initialize(startTime, metricStructReciever, mutexStrategy)
-      @metricStructReciever = metricStructReciever
+    def initialize(startTime, metricSink, mutexStrategy)
+      @metricSink = metricSink
       @annotations = {initTimestamp: startTime}
       @mutexStrategy = mutexStrategy
       @gauges = {}
@@ -33,11 +34,18 @@ module TsdMetrics
       @closed = false
     end
 
-    def setGauge(name, value)
+    def open?
+      @mutexStrategy.synchronize do
+        not @closed
+      end
+    end
+
+    def setGauge(name, value, unit = :noUnit)
       @mutexStrategy.synchronize do
         assertNotClosed
+        assertValidUnit(unit)
         @gauges[name] ||= []
-        @gauges[name].push(value)
+        @gauges[name].push({value: value, unit: unit}.select{|k, v| v != :noUnit})
       end
     end
 
@@ -57,13 +65,14 @@ module TsdMetrics
       end
     end
 
-    def setTimer(name, duration)
+    def setTimer(name, duration, unit = :noUnit)
       @mutexStrategy.synchronize do
         assertNotClosed
+        assertValidUnit(unit)
         pushNewStaticSample(:timers, name)
         sample = getStaticSample(:timers, name)
         sample.stop()
-        sample.duration = duration
+        sample.set(duration, unit)
       end
     end
 
@@ -119,18 +128,16 @@ module TsdMetrics
         assertNotClosed
         @closed = true
         @annotations[:finalTimestamp] = Time.now()
-        @metricStructReciever.receive(self)
+        @metricSink.record(self)
       end
     end
 
     def timers
-      durationHash = {}
-      getMetricsOfType(:timers).each do |k,v|
-        durations = v.durations
-        # Drop timer metrics with no stopped timers
-        durationHash[k] = durations if durations.length > 0
+      samplesHash = {}
+      getMetricsOfType(:timers).each do |timerName,timer|
+        samplesHash[timerName] = timer.samples
       end
-      durationHash
+      samplesHash
     end
 
     def counters
@@ -184,6 +191,10 @@ module TsdMetrics
 
     def assertNotClosed
       raise MetricClosedError if @closed
+    end
+
+    def assertValidUnit(unit)
+      raise MetricClosedError unless UnitsUtils.isValidUnitValue?(unit)
     end
   end
 end

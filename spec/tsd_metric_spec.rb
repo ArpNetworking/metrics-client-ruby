@@ -12,26 +12,36 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-require 'tsd_metrics/tsd_metric_2c'
+require 'tsd_metrics/tsd_metric'
 require 'timecop'
 include TsdMetrics
 
 describe "TsdMetric" do
-  let(:structReceiver) { double(:structReceiver, :receive => nil) }
+  let(:sink) { double(:sink, :record => nil) }
   let(:mutexer) do
     mock = double()
     allow(mock).to receive(:synchronize).and_yield()
     mock
   end
   let(:startTime) { Time.now }
-  let(:metric) { TsdMetric2c.new(startTime, structReceiver, mutexer) }
-  def closeAndGetStruct(metric=metric)
-    struct = nil
-    allow(structReceiver).to receive(:receive) do |metricStruct|
-      struct = metricStruct
+  let(:metric) { TsdMetric.new(startTime, sink, mutexer) }
+  def closeAndGetEvent(metric=metric)
+    event = nil
+    allow(sink).to receive(:record) do |metricEvent|
+      event = metricEvent
     end
     metric.close()
-    struct
+    event
+  end
+  def pickValuesFrom(metric)
+    metric.map do |sample|
+      sample[:value]
+    end
+  end
+  def pickUnitsFrom(metric)
+    metric.map do |sample|
+      sample[:unit]
+    end
   end
 
   context "with the minumum state" do
@@ -39,25 +49,34 @@ describe "TsdMetric" do
     let(:simplestMetric) do
       metric.tap{|m| m.setGauge(gaugeName, 100)}
     end
+
     it "outputs the minimum state for a metric" do
-      struct = nil
-      expect(structReceiver).to receive(:receive) do |metricStruct|
-        struct = metricStruct
+      event = nil
+      expect(sink).to receive(:record) do |metricEvent|
+        event = metricEvent
       end
       beforeCloseTime = Time.now()
       simplestMetric.close()
       afterCloseTime = Time.now()
 
-      struct.should_not be_nil
-      annotations = struct.annotations
+      event.should_not be_nil
+      annotations = event.annotations
       annotations.should_not be_nil
       annotations[:initTimestamp].should == startTime
       annotations[:finalTimestamp].should >= beforeCloseTime
       annotations[:finalTimestamp].should <= afterCloseTime
     end
+
     it "throws an exception if any operations are done after closing" do
-      closeAndGetStruct(simplestMetric)
+      closeAndGetEvent(simplestMetric)
       expect { simplestMetric.setGauge("something", 1) }.to raise_error TsdMetrics::Error
+    end
+
+    describe "open?" do
+      it "works as expected" do
+        expect { closeAndGetEvent(simplestMetric) }
+          .to change(simplestMetric, :open?).from(true).to(false)
+      end
     end
   end
 
@@ -65,15 +84,15 @@ describe "TsdMetric" do
     let(:gaugeName) { "myGauge"}
     let(:gaugeName2) { "myOtherGauge"}
     it "can be set" do
-      metric.setGauge(gaugeName, 100)
-      metric.setGauge(gaugeName, 307)
+      metric.setGauge(gaugeName, 100, :byte)
+      metric.setGauge(gaugeName, 307, :byte)
 
-      metric.setGauge(gaugeName2, 50)
-      metric.setGauge(gaugeName2, 23)
+      metric.setGauge(gaugeName2, 50, :week)
+      metric.setGauge(gaugeName2, 23, :week)
 
-      struct = closeAndGetStruct
-      struct.gauges[gaugeName].should =~ [100, 307]
-      struct.gauges[gaugeName2].should =~ [50, 23]
+      event = closeAndGetEvent
+      event.gauges[gaugeName].should =~ [{value: 100, unit: :byte}, {value: 307, unit: :byte}]
+      event.gauges[gaugeName2].should =~ [{value: 50, unit: :week}, {value: 23, unit: :week}]
     end
   end
 
@@ -90,9 +109,20 @@ describe "TsdMetric" do
       metric.stopTimer(timerName)
       Timecop.return
 
-      struct = closeAndGetStruct
-      struct.timers[timerName].should include(10000)
-      struct.timers[timerName].should include(25000)
+      event = closeAndGetEvent
+      values = pickValuesFrom(event.timers[timerName])
+      values.should include(10000000000)
+      values.should include(25000000000)
+    end
+
+    its "default unit is nanoseconds" do
+      Timecop.freeze(Time.now)
+      metric.startTimer(timerName)
+      Timecop.freeze(Time.now + 12)
+      metric.stopTimer(timerName)
+      Timecop.return
+      event = closeAndGetEvent
+      event.timers[timerName].should == [{value: 12e9, unit: :nanosecond}]
     end
 
     it "only record timers that are stopped when metric is closed" do
@@ -104,27 +134,28 @@ describe "TsdMetric" do
       metric.startTimer(timerName)
       Timecop.freeze(Time.now + 25)
 
-      struct = closeAndGetStruct
-      struct.timers[timerName].should == [10000]
+      event = closeAndGetEvent
+      values = pickValuesFrom(event.timers[timerName])
+      values.should == [10e9]
 
       Timecop.return
     end
 
     it "can be added manually" do
-      metric.setTimer(timerName, 20.5)
-      struct = closeAndGetStruct
-      struct.timers[timerName].should include(20.5)
+      metric.setTimer(timerName, 20.5, :second)
+      event = closeAndGetEvent
+      pickValuesFrom(event.timers[timerName]).should include(20.5)
     end
 
-    it "drops whole sample groups when no samples are stopped" do
+    it "keeps whole sample groups when no samples are stopped" do
       otherTimerName = "myOtherTimer"
       metric.startTimer(timerName)
       metric.startTimer(otherTimerName)
 
       metric.stopTimer(otherTimerName)
 
-      struct = closeAndGetStruct
-      struct.timers.should_not include(timerName)
+      event = closeAndGetEvent
+      event.timers.should include(timerName)
     end
 
     it "orders timer samples by start time" do
@@ -149,8 +180,9 @@ describe "TsdMetric" do
       metric.stopTimer(timerName)
 
       # Ensure the order of samples is the same as the timer-starting order
-      struct = closeAndGetStruct
-      struct.timers[timerName].should == [62000, 28000, 8000]
+      event = closeAndGetEvent
+      values = pickValuesFrom(event.timers[timerName])
+      values.should == [62e9, 28e9, 8e9]
 
       Timecop.return
 
@@ -158,8 +190,15 @@ describe "TsdMetric" do
 
     it "can be obtained as an object" do
       timerSample = nil
-      expect { timerSample = metric.createTimer(timerName) }.not_to raise_error
+      expect { timerSample = metric.createTimer(:timerName) }.not_to raise_error
       timerSample.should_not == nil
+    end
+
+    it "contains the unit for each timer" do
+      metric.setTimer(timerName, 17.5, :second)
+      event = closeAndGetEvent
+      pickUnitsFrom(event.timers[timerName]).should include(:second)
+      [{:a => "b"}].should include({:a => "b"})
     end
 
     describe "OO interface" do
@@ -171,19 +210,27 @@ describe "TsdMetric" do
         Timecop.freeze(Time.now + 12)
         ooTimer.stop
         Timecop.return
-        struct = closeAndGetStruct
-        struct.timers[timerName].should include(12000)
+        event = closeAndGetEvent
+        pickValuesFrom(event.timers[timerName]).should include(12000000000)
+      end
+
+      describe "stopped?" do
+        it "works as expected" do
+          expect { ooTimer.stop }.to change(ooTimer, :stopped?).from(false).to(true)
+        end
       end
     end
   end
 
   describe "counters" do
     let(:counterName) { :myCounter }
+
     it "default to start at 0" do
       metric.incrementCounter(counterName)
-      struct = closeAndGetStruct
-      struct.counters[counterName].should == [1]
+      event = closeAndGetEvent
+      pickValuesFrom(event.counters[counterName]).should == [1]
     end
+
     it "can be incremented and decremented" do
       metric.resetCounter(counterName)
       12.times { metric.decrementCounter(counterName) }
@@ -194,9 +241,10 @@ describe "TsdMetric" do
       # Now at -16
       3.times { metric.incrementCounter(counterName, 23) }
       # Now at 53
-      struct = closeAndGetStruct
-      struct.counters[counterName].should include 53
+      event = closeAndGetEvent
+      pickValuesFrom(event.counters[counterName]).should include 53
     end
+
     it "can be reset to create multiple values" do
       metric.resetCounter(counterName)
       metric.incrementCounter(counterName)
@@ -204,13 +252,15 @@ describe "TsdMetric" do
       3.times { metric.incrementCounter(counterName) }
       metric.resetCounter(counterName)
       # Test for existance of array items without testing order
-      closeAndGetStruct.counters[counterName].should =~ [3,0,1]
+      pickValuesFrom(closeAndGetEvent.counters[counterName]).should =~ [3,0,1]
     end
+
     it "can be obtained as an object" do
       counterSample = nil
       expect { counterSample = metric.createCounter(:counterName) }.not_to raise_error
       counterSample.should_not == nil
     end
+
     describe "OO interface" do
       let(:ooCounter) { metric.createCounter(counterName) }
       it "can be incremented and decremented to produce a sample" do
@@ -222,8 +272,8 @@ describe "TsdMetric" do
         # Now at -16
         3.times { ooCounter.increment(23) }
         # Now at 53
-        struct = closeAndGetStruct
-        struct.counters[counterName].should include 53
+        event = closeAndGetEvent
+        pickValuesFrom(event.counters[counterName]).should include 53
       end
     end
   end
@@ -233,7 +283,7 @@ describe "TsdMetric" do
     let(:annotationString) { "it was the worst of times, it was the blurst of times" }
     it "can be set on the metric" do
       metric.annotate(annotationName, annotationString)
-      closeAndGetStruct.annotations[annotationName].should == annotationString
+      closeAndGetEvent.annotations[annotationName].should == annotationString
     end
   end
 end
