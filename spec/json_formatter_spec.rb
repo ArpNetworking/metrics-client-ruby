@@ -89,7 +89,7 @@ describe "JsonFormattingSink" do
 
   it "conforms to the JSON schema" do
     jsonString = captureOutput(double(minimalStruct))
-    JSON::Validator.validate!("../doc/query-log-schema-2e.json", jsonString)
+    JSON::Validator.validate!("doc/query-log-schema-2e.json", jsonString)
   end
 
   it "does not output anything when no samples are present" do
