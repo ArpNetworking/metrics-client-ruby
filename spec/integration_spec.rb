@@ -31,7 +31,7 @@ describe "creating metrics" do
       count = 0
       while true
         line = file.readline rescue break
-        JSON::Validator.validate!("../doc/query-log-schema-2e.json", line)
+        JSON::Validator.validate!("doc/query-log-schema-2e.json", line)
         count += 1
       end
       count.should == n

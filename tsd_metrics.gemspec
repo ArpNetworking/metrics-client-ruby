@@ -27,9 +27,9 @@ Gem::Specification.new do |s|
   s.test_files    = s.files.grep(%r{^spec/})
   s.require_paths = ["lib", "resources"]
 
-
   s.add_development_dependency 'rspec', '2.14.1'
   s.add_development_dependency 'timecop', '0.7.1'
   s.add_development_dependency 'pry', '0.9.12.6'
   s.add_development_dependency 'json-schema', '2.4.1'
+  s.add_development_dependency 'rake', '10.4.2'
 end
