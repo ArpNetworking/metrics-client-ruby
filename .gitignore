@@ -1,10 +1,23 @@
-# Gem
+# Output
 *.gem
 .bundle
-
-# DotCi
+.rakeTasks
 tmp
 .gemencap
-
-# Test Output
 my_file.json
+
+# Eclipse
+.metadata/
+.externalToolBuilders/
+bin/
+eclipse-bin/
+**/.classpath
+**/RemoteSystemsTempFiles/
+
+# IntelliJ
+.idea
+.settings/
+*.iml
+
+# Mac
+.DS_Store

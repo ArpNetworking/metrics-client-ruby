@@ -1,5 +1,18 @@
-Metrics
-=======
+Ruby Client
+===========
+
+<a href="https://raw.githubusercontent.com/ArpNetworking/metrics-client-ruby/master/LICENSE">
+    <img src="https://img.shields.io/hexpm/l/plug.svg"
+         alt="License: Apache 2">
+</a>
+<a href="https://travis-ci.org/ArpNetworking/metrics-client-ruby/">
+    <img src="https://travis-ci.org/ArpNetworking/metrics-client-ruby.png"
+         alt="Travis Build">
+</a>
+<a href="https://rubygems.org/search?utf8=%E2%9C%93&query=com.arpnetworking.metrics.metrics-client">
+    <img src="https://img.shields.io/gem/v/com.arpnetworking.metrics.metrics-client.svg"
+         alt="Ruby Gem">
+</a>
 
 Client implementation for publishing metrics from Ruby applications. 
 
