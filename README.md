@@ -9,7 +9,10 @@ Ruby Client
     <img src="https://travis-ci.org/ArpNetworking/metrics-client-ruby.png"
          alt="Travis Build">
 </a>
-[![Gem Version](https://badge.fury.io/rb/tsd_metrics.svg)](https://badge.fury.io/rb/tsd_metrics)
+<a href="https://badge.fury.io/rb/tsd_metrics">
+    <img src="https://badge.fury.io/rb/tsd_metrics.svg"
+         alt="Gem Version">
+</a>
 
 Client implementation for publishing metrics from Ruby applications. 
 
