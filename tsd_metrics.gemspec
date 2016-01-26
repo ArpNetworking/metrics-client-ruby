@@ -12,9 +12,12 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
+
+require File.expand_path('../lib/tsd_metrics/version', __FILE__)
+
 Gem::Specification.new do |s|
   s.name        = 'tsd_metrics'
-  s.version     = '0.2.8'
+  s.version     = TsdMetrics::VERSION
   s.date        = '2015-01-15'
   s.summary     = "TSD Metrics client for Ruby"
   s.description = "A client for logging to TSD-Aggregation-logging-compatible JSON files"
