@@ -177,6 +177,14 @@ we have encountered.
 No work is needed to make the client work under Phusion Passenger.  Internally, we detect the fork 
 and re-initialize the client.  Everything just works.
 
+Release
+-------
+
+If, as a contributor, you want to release a new version of the gem:
+
+    gem install gem-release
+
+
 License
 -------
 
