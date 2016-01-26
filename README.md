@@ -180,9 +180,17 @@ and re-initialize the client.  Everything just works.
 Release
 -------
 
-If, as a contributor, you want to release a new version of the gem:
+If, as a contributor, you want to release a new version of the gem (bumping the patch version), do the following on
+the master branch with a clean working tree :
 
-    gem install gem-release
+    gem install gem-release  # Install the gem-release tool
+    gem bump --tag           # Updates the version, commits, tags, git pushes
+
+Or, for a minor version bump
+
+    gem bump --tag --version minor
+
+See `gem help bump` for more.
 
 
 License

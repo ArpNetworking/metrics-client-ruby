@@ -9,6 +9,6 @@ deploy:
   on:
     tags: true
     rvm: 1.9.3
-    condition: "$TRAVIS_BRANCH = master"
+    condition: "$TRAVIS_TAG =~ ^v[0-9]\.[0-9]\.[0-9]$"
   api_key:
     secure: KACQT1NXqlICT2qSVobhBGRi71nw6JCuWUZZN59KeMfIqQhGwSnNJ8JpXVhrrz7lijAWbNAeW0aimf8toeeaRQiaP468o0eAH8WkWzOImFaSLs8TEiH4cZEt/QxBV3RP6BWJJkPK+VjLY3w2x4DzKQbpkJvTmIkLg+M4wgG4hmoDlEcEQ5NHrNv45BjxzaA6n/Wh1vLcsZy0PgXR4RgDeLnpzu/2/OqKeLecyrQvHh7IrJUvlgVBOAliZE8cEps5ebRqNrrLXWfKHLPzmyx/alRZFwllPveb5Gx3WymYamiiJOComfLPxg58v/fI7sKrkqWYgpgXPd41fwEh6yuK2D7siG8QC+sUZxLjwzJjm/xU7C64pjCUzbONx9Ju0849f8mfl7d4JSeEtKd6dxGdtotE/mlQIdnFac60T5dQ0BBfcSBa3+yegpvuvtsgKzZpa7ceSM9nBRMqTXoGwN+mhEKxTYJo4iWW5lLqSvUU5a9Ho0Prf+aMT5ntc01ax/U1cgV7jK3bwmRzsmEfRl1nW6Q1DJmjloZY0jgNJnaOhfZ0Yj9CE1gNPzGCI2yDIq+fHQ3EluSJGKpXmSao5eR2PYNvmel/S93/v4lxgMKxx1veewM9l8OjEjelQcKFrnH1efHzP8UOsv4LScbQgKJTH7SgmXWvvrKQBEN+zDztt1Q=
